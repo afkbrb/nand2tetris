@@ -42,80 +42,74 @@ public class Parser implements AutoCloseable {
 
     public void advance() throws IOException, AssemblyException {
         hasMoreCommands = false;
-        String buffer;
-        while ((buffer = reader.readLine()) != null) { // null means EOF reached
+        String line;
+        while ((line = reader.readLine()) != null) { // null means EOF reached
             lineno++;
-            String line = buffer.trim();
             if (line.contains("//")) { // 可能是一个注释一行，也有可能是注释跟在指令后面
-                line = line.substring(0, line.indexOf("//")).trim();
+                line = line.substring(0, line.indexOf("//"));
             }
+            line = line.trim();
             if (line.length() == 0) {
                 continue;
             }
+            hasMoreCommands = true;
+            break;
+        }
+        if (!hasMoreCommands) return;
 
-            switch (line.charAt(0)) {
-                case '@': { // A_COMMAND
-                    commandType = A_COMMAND;
-                    if (labelOnly) { // only care about label?
-                        hasMoreCommands = true;
-                        return;
-                    }
-                    symbol = line.substring(1).trim();
-
-                    // System.out.printf("line: %d, address: %s\n", lineno, symbol); // TODO: delete this line
-                    hasMoreCommands = true;
-                    return;
+        assert line != null;
+        switch (line.charAt(0)) {
+            case '@':  // A_COMMAND
+                commandType = A_COMMAND;
+                if (labelOnly) { // only care about label?
+                    break;
                 }
-                case '(': { // L_COMMAND
-                    commandType = L_COMMAND;
-                    if (!labelOnly) {
-                        hasMoreCommands = true;
-                        return;
-                    }
-                    line = line.substring(1);
-                    int index = line.indexOf(')');
-                    if (index == -1) {
-                        throw new AssemblyException("expect ')' at line: " + lineno);
-                    }
-                    line = line.substring(0, index).trim();
-                    if (line.length() == 0) {
-                        throw new AssemblyException("expect a symbol between '(' and ') at line: " + lineno);
-                    }
-                    symbol = line;
-
-                    // System.out.printf("line: %d, label: %s\n", lineno, symbol); // TODO: delete this line
-                    hasMoreCommands = true;
-                    return;
+                symbol = line.substring(1).trim();
+                // System.out.printf("line: %d, address: %s\n", lineno, symbol); // TODO: delete this line
+                break;
+            case '(':  // L_COMMAND
+                commandType = L_COMMAND;
+                if (!labelOnly) {
+                    break;
                 }
-                default: { // C_COMMAND?
-                    commandType = C_COMMAND;
-                    if (labelOnly) { // only care about label?
-                        hasMoreCommands = true;
-                        return;
-                    }
-                    if (line.indexOf('=') != -1) {
-                        String[] split = line.split("=");
-                        dest = split[0].trim();
-                        line = split[1];
-                    } else {
-                        dest = "null";
-                    }
-
-                    if (line.indexOf(';') != -1) {
-                        String[] split = line.split(";");
-                        jump = split[1].trim();
-                        line = split[0];
-                    } else {
-                        jump = "null";
-                    }
-
-                    comp = compact(line);
-
-                    // System.out.printf("line: %d, dest = %s, comp = %s, jump = %s\n", lineno, dest, comp, jump);
-                    hasMoreCommands = true;
-                    return;
+                line = line.substring(1);
+                int index = line.indexOf(')');
+                if (index == -1) {
+                    throw new AssemblyException("expect ')' at line: " + lineno);
                 }
-            }
+                line = line.substring(0, index).trim();
+                if (line.length() == 0) {
+                    throw new AssemblyException("expect a symbol between '(' and ') at line: " + lineno);
+                }
+                symbol = line;
+                // System.out.printf("line: %d, label: %s\n", lineno, symbol); // TODO: delete this line
+                break;
+            default:  // C_COMMAND?
+                commandType = C_COMMAND;
+                if (labelOnly) { // only care about label?
+                    break;
+                }
+                if (line.indexOf('=') != -1) {
+                    String[] split = line.split("=");
+                    dest = split[0].trim();
+                    line = split[1];
+                } else {
+                    dest = "null";
+                }
+
+                if (line.indexOf(';') != -1) {
+                    String[] split = line.split(";");
+                    jump = split[1].trim();
+                    line = split[0];
+                } else {
+                    jump = "null";
+                }
+
+                comp = compact(line);
+
+                // System.out.printf("line: %d, dest = %s, comp = %s, jump = %s\n", lineno, dest, comp, jump);
+                hasMoreCommands = true;
+                break;
         }
     }
 
