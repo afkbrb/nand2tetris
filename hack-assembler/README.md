@@ -1,6 +1,6 @@
 # hack-assembler
 
-foo.asm => foo.hack
+Foo.asm => Foo.hack
 
 需要忽略注释，并将相应的 label 转换成指令位置。
 
