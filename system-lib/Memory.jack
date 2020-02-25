@@ -1,0 +1,77 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Memory.jack
+
+/**
+ * This library provides two services: direct access to the computer's main
+ * memory (RAM), and allocation and recycling of memory blocks. The Hack RAM
+ * consists of 32,768 words, each holding a 16-bit binary number.
+ */ 
+class Memory {
+
+    static Array ram;
+
+    static Array heap; 
+
+    static Array freeList, tail;
+
+    /** Initializes the class. */
+    function void init() {
+        let ram = 0;
+        let heap = 2048; // heapBase
+        let freeList = heap; // head of the free list
+        let tail = freeList;
+        let heap[0] = 0; // next
+        let heap[1] = 14334; // length
+        return;
+    }
+
+    /** Returns the RAM value at the given address. */
+    function int peek(int address) {
+        return ram[address];
+    }
+
+    /** Sets the RAM value at the given address to the given value. */
+    function void poke(int address, int value) {
+        let ram[address] = value;
+        return;
+    }
+
+    /** Finds an available RAM block of the given size and returns
+     *  a reference to its base address. */
+    function int alloc(int size) {
+        var Array temp;
+        var int block;
+        let temp = freeList;
+        if (temp[1] > (size + 2)) {
+            let block = temp + 2 + temp[1] - size; // block 指向长度后的那个位置
+            let temp[1] = temp[1] - size - 2;
+            let block[-2] = 0; // end
+            let block[-1] = size;
+            return block;
+        }
+        while (~(temp[0] = 0)) { // next != 0
+            let temp = temp[0];
+            if (temp[1] > (size + 2)) {
+                let block = temp + 2 + temp[1] - size;
+                let temp[1] = temp[1] - size - 2;
+                let block[-2] = 0; // end
+                let block[-1] = size;
+                return block;
+            }
+        }
+
+        do Sys.error(1); // 错误码没有规定，反正报个错说明内存不够分配了
+        
+        return 0;
+    }
+
+    /** De-allocates the given object (cast as an array) by making
+     *  it available for future allocations. */
+    function void deAlloc(Array obj) {
+        let tail[0] = obj - 2; // obj 指针 -2 就是 obj 对应内存块（包括元信息）的起始地址
+        let tail = tail[0]; // tail = tail.next
+        return;
+    }    
+}

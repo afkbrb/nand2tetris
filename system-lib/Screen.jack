@@ -1,0 +1,239 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Screen.jack
+
+/**
+ * 图形库，(rows, cols) = (256, 512)
+ */
+class Screen {
+
+    static Array screen;
+    static boolean white, black;
+    static boolean color;
+    static Array powerOf;
+
+    /** Initializes the Screen. */
+    function void init() {
+        let screen = 16384;
+        let white = false; // 000...000
+        let black = true; // 111...111
+        let color = black;
+
+        // 此处和 Math 库代码重了，但是由于画每个像素点都要使用到，调用 Math 库会非常慢，直接手动内联了
+        let powerOf = Array.new(16);
+        let powerOf[0] = 1;
+        let powerOf[1] = 2;
+        let powerOf[2] = 4;
+        let powerOf[3] = 8;
+        let powerOf[4] = 16;
+        let powerOf[5] = 32;
+        let powerOf[6] = 64;
+        let powerOf[7] = 128;
+        let powerOf[8] = 256;
+        let powerOf[9] = 512;
+        let powerOf[10] = 1024;
+        let powerOf[11] = 2048;
+        let powerOf[12] = 4096;
+        let powerOf[13] = 8192;
+        let powerOf[14] = 16384;
+        let powerOf[15] = 16384 + 16384; // int 常量最大为 2^16 - 1 (15 个 1) 
+
+        return;
+    }
+
+    /** Erases the entire screen. */
+    function void clearScreen() {
+        var int i;
+
+        let i = 0;
+        while (i < 8192) {
+            let screen[i] = white;
+            let i = i + 1;
+        }
+        return;
+    }
+
+    /** Sets the current color, to be used for all subsequent drawXXX commands.
+     *  Black is represented by true, white by false. */
+    function void setColor(boolean b) {
+        let color = b;
+        return;
+    }
+
+    /** Draws the (x,y) pixel, using the current color. */
+    function void drawPixel(int x, int y) {
+        var int address;
+        var int mask;
+
+        let address = (y * 32) + (x / 16);
+        let mask = powerOf[x & 15];
+
+        if (color) {
+            let screen[address] = screen[address] | mask;
+        } else {
+            let screen[address] = screen[address] & (~mask);
+        }
+
+        return;
+    }
+
+    /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
+    // 采用了 Bresenham 算法
+    // from: https://github.com/fragkakis/bresenham/blob/master/src/main/java/org/fragkakis/Bresenham.java
+    function void drawLine(int x1, int y1, int x2, int y2) {
+        var int dx, dy;
+        var int sx, sy;
+        var int err, e2;
+        var int x, y;
+        var boolean done;
+
+        let dx = Math.abs(x1 - x2);
+        let dy = Math.abs(y1 - y2);
+        if (x1 < x2) {
+            let sx = 1;
+        } else {
+            let sx = -1;
+        }
+        if (y1 < y2) {
+            let sy = 1;
+        } else {
+            let sy = -1;
+        }
+
+        let err = dx - dy;
+        let x = x1;
+        let y = y1;
+        let done = false;
+
+        while (done = false) {
+            do Screen.drawPixel(x, y);
+
+            if ((x = x2) & (y = y2)) {
+                let done = true;
+            }
+
+            if (done = false) {
+                let e2 = 2 * err;
+
+                if (e2 > -dy) {
+                    let err = err - dy;
+                    let x = x + sx;
+                }
+
+                if (e2 < dx) {
+                    let err = err + dx;
+                    let y = y + sy;
+                }
+            }
+        }
+
+        return;
+    }
+
+    // 当然可以使用 darwLine 函数，不过在确定是水平线时用此函数可以提高效率
+    function void drawHorizontalLine(int x1, int x2, int y) {
+        var int xStart, xEnd;
+        var int i, n;
+        var int address;
+        
+        if (x1 < x2) {
+            let xStart = x1;
+            let xEnd = x2;
+        } else {
+            let xStart = x2;
+            let xEnd = x1;
+        }
+
+        // 水平线比较长的画，直接一次画 16 个点，会快很多
+        if (xEnd - xStart > 31) {
+            while (~((xStart & 15) = 0)) {
+                do Screen.drawPixel(xStart, y);
+                let xStart = xStart + 1;
+            }
+
+            while (~((xEnd & 15) = 15)) {
+                do Screen.drawPixel(xEnd, y);
+                let xEnd = xEnd - 1;
+            }
+
+            let n = (xEnd - xStart + 1) / 16;
+            let address = (y * 32) + (xStart / 16);
+            let i = 0;
+            while (i < n) {
+                let screen[address] = color;
+                let address = address + 1;
+                let i = i + 1;
+            }
+        } else {
+            while (~(xStart > xEnd)) {
+                do Screen.drawPixel(xStart, y);
+                let xStart = xStart + 1;
+            }
+        }
+
+        return;
+    }
+
+    /** Draws a filled rectangle whose top left corner is (x1, y1)
+     * and bottom right corner is (x2,y2), using the current color. */
+    function void drawRectangle(int x1, int y1, int x2, int y2) {
+        var int y;
+
+        let y = y1;
+        while (~(y > y2)) {
+            do Screen.drawHorizontalLine(x1, x2, y);
+            let y = y + 1;
+        }
+
+        return;
+    }
+
+    /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
+    // Bresenham 画圆算法
+    function void drawCircle(int xc, int yc, int r) {
+        var int p;
+        var int x, y; // 相对于 (xc, yc) 的坐标
+        var int t;
+
+        let p = 1 - r;
+        let x = 0;
+        let y = r;
+
+        let t = 0;
+        while (~(t > y)) {
+            do Screen.circlePlotPoints(xc, yc, x, t);
+            let t = t + 1;
+        }
+
+        while (x < y) {
+            let x = x + 1;
+            if (p < 0) {
+                let p = p + (x + x) + 1;
+            } else {
+                let y = y - 1;
+                let p = p + (x + x - y - y) + 1;
+            }
+            let t = 0;
+            while (~(t > y)) {
+                do Screen.circlePlotPoints(xc, yc, x, t);
+                let t = t + 1;
+            }
+        }
+
+        return;
+    }
+
+    function void circlePlotPoints(int xc, int yc, int x, int y) {
+        do Screen.drawPixel(xc + x, yc + y);
+        do Screen.drawPixel(xc - x, yc + y);
+        do Screen.drawPixel(xc + x, yc - y);
+        do Screen.drawPixel(xc - x, yc - y);
+        do Screen.drawPixel(xc + y, yc + x);
+        do Screen.drawPixel(xc - y, yc + x);
+        do Screen.drawPixel(xc + y, yc - x);
+        do Screen.drawPixel(xc - y, yc - x);
+
+        return;
+    }
+}
