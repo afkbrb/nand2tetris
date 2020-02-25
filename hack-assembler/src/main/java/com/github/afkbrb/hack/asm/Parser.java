@@ -122,7 +122,7 @@ public class Parser implements AutoCloseable {
     /**
      * Are there more lines in the file?
      */
-    public boolean hasMoreCommand() throws IOException, AssemblyException {
+    public boolean hasMoreCommands() throws IOException, AssemblyException {
         return hasMoreCommands;
     }
 

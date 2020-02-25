@@ -73,7 +73,7 @@ public class HackAssembler {
         int nextAddress = 0;
         try (Parser parser = new Parser(asmFile, true)) { // only deal with label, so we set labelOnly to true for better performance
             parser.advance();
-            while (parser.hasMoreCommand()) {
+            while (parser.hasMoreCommands()) {
                 if (parser.commandType() == L_COMMAND) { // label
                     if (symbolTable.contains(parser.symbol())) {
                         throw new AssemblyException("label " + parser.symbol() + " must be unique");
@@ -105,7 +105,7 @@ public class HackAssembler {
         int nextVarAddress = 16;
         try (Parser parser = new Parser(asmFile, false); Writer writer = new BufferedWriter(new FileWriter(hackFile))) {
             parser.advance();
-            while (parser.hasMoreCommand()) {
+            while (parser.hasMoreCommands()) {
                 if (parser.commandType() == A_COMMAND) {
                     String symbol = parser.symbol();
                     int address = -1;
